@@ -31,20 +31,7 @@ export const aiRouter = createRouter({
     });
   }),
 
-  stream: publicQuery.input(z.object({
-    prompt: z.string(),
-    systemPrompt: z.string().optional(),
-  })).query(async function* ({ input }) {
-    const gemini = getGemini();
-    const stream = gemini.streamGenerate({
-      systemInstruction: input.systemPrompt,
-      messages: [{ role: "user", content: input.prompt }],
-      config: { temperature: 0.7 },
-    });
-    for await (const chunk of stream) {
-      yield chunk;
-    }
-  }),
+  // Stream endpoint removed - use generate for now. SSE streaming will be added via separate endpoint.
 
   chat: publicQuery.input(z.object({
     message: z.string(),
