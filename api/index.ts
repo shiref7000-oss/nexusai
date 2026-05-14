@@ -3,8 +3,7 @@ import { handle } from "hono/vercel";
 import app from "./boot";
 
 export const config = {
-  runtime: "nodejs20.x",
+  runtime: "nodejs",
 };
 
-// @ts-ignore — handle expects standard Hono, our app uses node-server bindings
 export default handle(app);
