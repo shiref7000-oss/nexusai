@@ -1,0 +1,156 @@
+# NexusAI OS - CI Pipeline
+# Runs on every push and pull request
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # --- Frontend Build ---
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/public
+          retention-days: 7
+
+  # --- Backend Build ---
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check backend
+        run: npx tsc --noEmit -p tsconfig.server.json
+
+  # --- Lint ---
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run formatter
+        run: npm run format -- --check
+
+  # --- Database Schema Check ---
+  db-check:
+    name: Database Schema Check
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: nexusai_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for MySQL
+        run: |
+          npx wait-on tcp:3306 --timeout 30000
+
+      - name: Push schema to test database
+        env:
+          DATABASE_URL: mysql://root:testpassword@localhost:3306/nexusai_test
+        run: npm run db:push
+
+      - name: Run seed (dry run check)
+        env:
+          DATABASE_URL: mysql://root:testpassword@localhost:3306/nexusai_test
+        run: npx tsx db/seed.ts
+
+  # --- E2E Test (Placeholder) ---
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build-frontend, build-backend]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Uncomment when Playwright tests are added:
+      # - name: Install Playwright
+      #   run: npx playwright install --with-deps
+      # - name: Run E2E tests
+      #   run: npx playwright test
+
+      - name: Placeholder - Build verification
+        run: |
+          echo "E2E tests will run here when Playwright is configured"
+          echo "Frontend build status: ${{ needs.build-frontend.result }}"
+          echo "Backend build status: ${{ needs.build-backend.result }}"
