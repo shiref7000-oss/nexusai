@@ -24,7 +24,8 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 export default app;
 
-if (env.isProduction) {
+// Only start local server if not on Vercel
+if (env.isProduction && !process.env.VERCEL) {
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
